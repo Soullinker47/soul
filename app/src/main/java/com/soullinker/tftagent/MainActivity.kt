@@ -23,5 +23,13 @@ class MainActivity : ComponentActivity() {
   }
 }
 
-@Composable fun Greeting(text: String) { Text("Hello $text") }
-@Preview @Composable fun PreviewGreeting() { Greeting("Preview") }
+@Composable
+fun Greeting(text: String) {
+  Text("Hello $text")
+}
+
+@Preview
+@Composable
+fun PreviewGreeting() {
+  Greeting("Preview")
+}
