@@ -1,0 +1,54 @@
+name: Release
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore
+        run: dotnet restore ExocadDailyExporter.sln
+
+      - name: Publish
+        shell: pwsh
+        run: |
+          $publishDir = "dist/win-x64"
+          if (Test-Path 'dist') { Remove-Item 'dist' -Recurse -Force }
+          dotnet publish ExocadDailyExporter.sln -c Release -r win-x64 -p:PublishSingleFile=true -p:SelfContained=true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=true -o $publishDir
+          Copy-Item ExocadDailyExporter/appsettings.json $publishDir -Force
+          Copy-Item ExocadDailyExporter/README.md $publishDir -Force
+          Compress-Archive -Path "$publishDir/*" -DestinationPath "dist/ExocadDailyExporter-win-x64.zip"
+
+      - name: Create Release
+        id: release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: dist/ExocadDailyExporter-win-x64.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish summary
+        if: always()
+        shell: pwsh
+        run: |
+          $releaseUrl = "https://github.com/${{ github.repository }}/releases/tag/${{ github.ref_name }}"
+          $downloadUrl = '${{ steps.release.outputs.browser_download_url }}'
+          if (-not $downloadUrl) {
+            $downloadUrl = '浏览 Release 页面下载'
+          }
+          "Release 页面：$releaseUrl" | Set-Content -Path summary.txt
+          "直接下载：$downloadUrl" | Add-Content -Path summary.txt
+          Get-Content summary.txt
+          Get-Content summary.txt | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append
